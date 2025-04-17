@@ -1,81 +1,105 @@
+<?php
+require_once '../../app/config/db.php';
+
+// Ambil semua kategori untuk filter
+$sql_kategori = "SELECT DISTINCT kategori FROM produk ORDER BY kategori";
+$result_kategori = $conn->query($sql_kategori);
+$kategoris = [];
+while ($row = $result_kategori->fetch_assoc()) {
+    $kategoris[] = $row['kategori'];
+}
+
+// Ambil semua produk
+$sql_produk = "SELECT * FROM produk ORDER BY tanggal_tambah DESC";
+$result_produk = $conn->query($sql_produk);
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HarvestFarm - Langsung dari Kebun</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Tambahkan konfigurasi custom color -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'custom-green': '#1F5233',
-            'custom-green-dark': '#174026'
-          }
-        }
-      }
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HarvestFarm - Hasil Tani Segar</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="font-sans bg-white text-gray-800">
-
-  <!-- Navbar -->
-  <nav class="flex items-center justify-between px-8 py-4 shadow">
-    <div class="flex items-center gap-2">
-      <img src="./images/logo2.png" alt="HarvestFarm" class="w-8 h-8">
-      <span class="text-xl font-bold text-green-800">HarvestFarm</span>
+<body>
+    <header>
+        <div class="container">
+            <div class="logo">
+                <a href="index.php">HarvestFarm</a>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.php">Beranda</a></li>
+                    <li><a href="create.php">Tambah Produk</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    
+    <main>
+        <div class="container">
+            <h1 class="page-title">Produk Hasil Tani Segar</h1>
+            
+            <div class="filter-container">
+                <label for="filter-kategori">Filter Kategori:</label>
+                <select id="filter-kategori">
+                    <option value="semua">Semua Kategori</option>
+                    <?php foreach ($kategoris as $kategori): ?>
+                    <option value="<?= $kategori ?>"><?= $kategori ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <div class="products">
+                <?php if ($result_produk->num_rows > 0): ?>
+                    <?php while ($produk = $result_produk->fetch_assoc()): ?>
+                    <div class="product-card" data-category="<?= $produk['kategori'] ?>">
+                        <div class="product-image">
+                            <?php if (!empty($produk['gambar'])): ?>
+                            <img src="uploads/<?= $produk['gambar'] ?>" alt="<?= $produk['nama'] ?>">
+                            <?php else: ?>
+                            <img src="assets/images/no-image.jpg" alt="No Image">
+                            <?php endif; ?>
+                        </div>
+                        <div class="product-info">
+                            <h3 class="product-title"><?= $produk['nama'] ?></h3>
+                            <p class="product-category">Kategori: <?= $produk['kategori'] ?></p>
+                            <p class="product-price">Rp <?= number_format($produk['harga'], 0, ',', '.') ?></p>
+                            <p class="product-stock">Stok: <?= $produk['stok'] ?></p>
+                            <div class="product-actions">
+                                <a href="detail.php?id=<?= $produk['id'] ?>" class="btn btn-view">Detail</a>
+                                <a href="edit.php?id=<?= $produk['id'] ?>" class="btn btn-edit">Edit</a>
+                                <a href="#" class="btn btn-delete" data-id="<?= $produk['id'] ?>" data-name="<?= $produk['nama'] ?>">Hapus</a>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <p>Tidak ada produk yang tersedia.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Modal Konfirmasi Hapus -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title">Konfirmasi Hapus</h3>
+            <p>Apakah Anda yakin ingin menghapus produk <span id="product-name"></span>?</p>
+            <div class="modal-actions">
+                <button id="cancel-delete" class="btn btn-edit">Batal</button>
+                <a id="confirm-delete" href="#" class="btn btn-delete">Hapus</a>
+            </div>
+        </div>
     </div>
-    <div class="flex items-center gap-6">
-      <a href="#" class="flex items-center gap-2 text-sm font-semibold text-green-800">
-        <img src="./images/kategori.png" alt="Kategori" class="w-5 h-5">Kategori
-      </a>
-      <input type="text" placeholder="Bantu saya mencari ..." 
-             class="px-4 py-2 rounded-full border border-gray-300 w-64 focus:outline-none focus:ring-2 focus:ring-green-800">
-      <button class="p-2 hover:bg-gray-100 rounded-full">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 5H19m-7 0a2 2 0 100 4 2 2 0 000-4z" />
-        </svg>
-      </button>
-      <button class="bg-green-800 hover:bg-green-900 text-white px-4 py-2 rounded-full text-sm transition-colors">
-        Daftar
-      </button>
-      <button class="bg-lime-500 hover:bg-lime-600 text-white px-4 py-2 rounded-full text-sm transition-colors">
-        Masuk
-      </button>
-    </div>
-  </nav>
-
-  <!-- Hero Section -->
-  <section class="mt-[133px] mb-[291px] mx-[140px]">
-    <div class="relative w-full max-w-[1160px] h-[600px] mx-auto overflow-hidden rounded-3xl">
-      <!-- Image Container dengan Constraint -->
-      <div class="relative h-full w-full">
-        <img src="./images/iklan.png" alt="Iklan" 
-             class="w-full h-full object-cover object-center" 
-             style="max-width: 1035px; max-height: 430.5px" >
-      
-      <!-- Tombol CTA -->
-      <div class="absolute left-[65px] bottom-[100px] z-10">
-        <button class="bg-custom-green hover:bg-custom-green-dark text-white text-lg font-semibold px-8 py-4 rounded-full 
-                   transition-all duration-300 transform hover:scale-105 shadow-lg">
-          Mulai Berbelanja
-        </button>
-      </div>
-
-      <!-- Slider Indicator -->
-      <div class="absolute bottom-5 left-0 right-0 flex justify-center items-center gap-3">
-        <button class="bg-lime-500 hover:bg-lime-600 text-white p-2 rounded-full transition-colors shadow-md">&lt;</button>
-        <span class="h-2 w-2 bg-green-900 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <button class="bg-green-900 hover:bg-green-950 text-white p-2 rounded-full transition-colors shadow-md">&gt;</button>
-      </div>
-    </div>
-  </section>
-
+    
+    <footer>
+        <div class="container">
+            <p>&copy; <?= date('Y') ?> HarvestFarm. Semua hak dilindungi.</p>
+        </div>
+    </footer>
+    
+    <script src="js/script.js"></script>
 </body>
 </html>
