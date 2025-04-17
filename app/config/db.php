@@ -1,18 +1,18 @@
 <?php
-// Konfigurasi database
-$host = 'localhost';
-$username = 'root';
-$password = '';
-$database = 'harvestfarm';
+// Database connection configuration
+$db_host = "localhost";
+$db_user = "root";
+$db_pass = "";
+$db_name = "harvestfarm";
 
-// Buat koneksi
-$conn = new mysqli($host, $username, $password, $database);
+// Create connection
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
 
-// Cek koneksi
+// Check connection
 if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+    die("Connection failed: " . $conn->connect_error);
 }
 
-// Set charset
+// Set character set
 $conn->set_charset("utf8");
 ?>
