@@ -1,81 +1,150 @@
+<?php
+// Include database connection
+require_once "../../app/config/db.php";
+
+// Get categories for filter
+$sql_categories = "SELECT * FROM categories ORDER BY name";
+$result_categories = $conn->query($sql_categories);
+$categories = [];
+while ($row = $result_categories->fetch_assoc()) {
+    $categories[] = $row;
+}
+
+// Handle search and filtering
+$search = isset($_GET['search']) ? $conn->real_escape_string($_GET['search']) : '';
+$category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
+
+// Build query with filters
+$sql = "SELECT p.*, c.name as category_name 
+        FROM products p 
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE 1=1";
+
+if (!empty($search)) {
+    $sql .= " AND (p.name LIKE '%$search%' OR p.description LIKE '%$search%')";
+}
+
+if ($category_id > 0) {
+    $sql .= " AND p.category_id = $category_id";
+}
+
+$sql .= " ORDER BY p.created_at DESC";
+$result = $conn->query($sql);
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HarvestFarm - Langsung dari Kebun</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Tambahkan konfigurasi custom color -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'custom-green': '#1F5233',
-            'custom-green-dark': '#174026'
-          }
-        }
-      }
-    }
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HarvestFarm - Hasil Tani Berkualitas</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body class="font-sans bg-white text-gray-800">
+<body>
+    <header>
+        <div class="logo-container">
+            <div class="logo">
+                <img src="./images/logo2.png" alt="HarvestFarm Logo">
+            </div>
+            <h1>HarvestFarm</h1>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="index.php" class="active">Beranda</a></li>
+                <li><a href="create.php">Tambah Produk</a></li>
+            </ul>
+        </nav>
+    </header>
+    
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <h2>Hasil Tani Segar Langsung dari Petani</h2>
+                <p>Temukan produk hasil tani berkualitas untuk kebutuhan Anda</p>
+            </div>
+        </section>
 
-  <!-- Navbar -->
-  <nav class="flex items-center justify-between px-8 py-4 shadow">
-    <div class="flex items-center gap-2">
-      <img src="./images/logo2.png" alt="HarvestFarm" class="w-8 h-8">
-      <span class="text-xl font-bold text-green-800">HarvestFarm</span>
+        <section class="filter-section">
+            <form id="filterForm" action="index.php" method="GET">
+                <div class="search-bar">
+                    <input type="text" name="search" id="search" placeholder="Cari produk..." value="<?php echo htmlspecialchars($search); ?>">
+                    <button type="submit"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="category-filter">
+                    <select name="category_id" id="category_id">
+                        <option value="0">Semua Kategori</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?php echo $category['id']; ?>" <?php echo ($category_id == $category['id']) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($category['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </form>
+        </section>
+
+        <section class="products">
+            <h2>Produk Petani Kami</h2>
+            
+            <?php if ($result->num_rows > 0): ?>
+                <div class="product-grid">
+                    <?php while($row = $result->fetch_assoc()): ?>
+                        <div class="product-card">
+                            <div class="product-image">
+                                <?php if (!empty($row['image_path']) && file_exists($row['image_path'])): ?>
+                                    <img src="<?php echo htmlspecialchars($row['image_path']); ?>" alt="<?php echo htmlspecialchars($row['name']); ?>">
+                                <?php else: ?>
+                                    <img src="images/placeholder.jpg" alt="Product Image Placeholder">
+                                <?php endif; ?>
+                            </div>
+                            <div class="product-info">
+                                <h3><?php echo htmlspecialchars($row['name']); ?></h3>
+                                <p class="category"><?php echo htmlspecialchars($row['category_name']); ?></p>
+                                <p class="price">Rp <?php echo number_format($row['price'], 0, ',', '.'); ?></p>
+                                <p class="stock">Stok: <?php echo $row['stock']; ?></p>
+                                <div class="product-actions">
+                                    <a href="detail.php?id=<?php echo $row['id']; ?>" class="btn btn-view"><i class="fas fa-eye"></i> Detail</a>
+                                    <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-edit"><i class="fas fa-edit"></i> Edit</a>
+                                    <button class="btn btn-delete" onclick="confirmDelete(<?php echo $row['id']; ?>)"><i class="fas fa-trash"></i> Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                </div>
+            <?php else: ?>
+                <div class="no-products">
+                    <p>Tidak ada produk yang ditemukan.</p>
+                </div>
+            <?php endif; ?>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="./images/logo-white.png" alt="HarvestFarm Logo">
+                <h3>HarvestFarm</h3>
+            </div>
+            <div class="footer-info">
+                <p>&copy; 2025 HarvestFarm. Semua hak dilindungi.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3>Konfirmasi Hapus</h3>
+            <p>Apakah Anda yakin ingin menghapus produk ini?</p>
+            <div class="modal-actions">
+                <button id="confirmDelete" class="btn btn-danger">Hapus</button>
+                <button id="cancelDelete" class="btn">Batal</button>
+            </div>
+        </div>
     </div>
-    <div class="flex items-center gap-6">
-      <a href="#" class="flex items-center gap-2 text-sm font-semibold text-green-800">
-        <img src="./images/kategori.png" alt="Kategori" class="w-5 h-5">Kategori
-      </a>
-      <input type="text" placeholder="Bantu saya mencari ..." 
-             class="px-4 py-2 rounded-full border border-gray-300 w-64 focus:outline-none focus:ring-2 focus:ring-green-800">
-      <button class="p-2 hover:bg-gray-100 rounded-full">
-        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.4 5H19m-7 0a2 2 0 100 4 2 2 0 000-4z" />
-        </svg>
-      </button>
-      <button class="bg-green-800 hover:bg-green-900 text-white px-4 py-2 rounded-full text-sm transition-colors">
-        Daftar
-      </button>
-      <button class="bg-lime-500 hover:bg-lime-600 text-white px-4 py-2 rounded-full text-sm transition-colors">
-        Masuk
-      </button>
-    </div>
-  </nav>
 
-  <!-- Hero Section -->
-  <section class="mt-[133px] mb-[291px] mx-[140px]">
-    <div class="relative w-full max-w-[1160px] h-[600px] mx-auto overflow-hidden rounded-3xl">
-      <!-- Image Container dengan Constraint -->
-      <div class="relative h-full w-full">
-        <img src="./images/iklan.png" alt="Iklan" 
-             class="w-full h-full object-cover object-center" 
-             style="max-width: 1035px; max-height: 430.5px" >
-      
-      <!-- Tombol CTA -->
-      <div class="absolute left-[65px] bottom-[100px] z-10">
-        <button class="bg-custom-green hover:bg-custom-green-dark text-white text-lg font-semibold px-8 py-4 rounded-full 
-                   transition-all duration-300 transform hover:scale-105 shadow-lg">
-          Mulai Berbelanja
-        </button>
-      </div>
-
-      <!-- Slider Indicator -->
-      <div class="absolute bottom-5 left-0 right-0 flex justify-center items-center gap-3">
-        <button class="bg-lime-500 hover:bg-lime-600 text-white p-2 rounded-full transition-colors shadow-md">&lt;</button>
-        <span class="h-2 w-2 bg-green-900 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <span class="h-2 w-2 bg-green-500 rounded-full"></span>
-        <button class="bg-green-900 hover:bg-green-950 text-white p-2 rounded-full transition-colors shadow-md">&gt;</button>
-      </div>
-    </div>
-  </section>
-
+    <script src="js/script.js"></script>
 </body>
 </html>
